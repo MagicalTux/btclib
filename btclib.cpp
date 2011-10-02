@@ -7,6 +7,8 @@ extern "C" {
 #include <SAPI.h>
 #include <dlfcn.h>
 #include <string.h>
+#include "zend_exceptions.h"
+#include "zend_interfaces.h"
 
 #include "php_btclib.h"
 }
@@ -27,12 +29,18 @@ PHP_FUNCTION(btclib_get_public_key)
 	char *privkey;
 	int tlen;
 
+	zend_error_handling error_handling;
+	zend_replace_error_handling(EH_THROW, NULL, &error_handling TSRMLS_CC);
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &privkey, &tlen) == FAILURE) {
-		RETURN_NULL();
+		zend_restore_error_handling(&error_handling TSRMLS_CC);
+		return;
 	}
+	zend_restore_error_handling(&error_handling TSRMLS_CC);
 
 	if (tlen != 32) {
-		RETURN_FALSE; // private key must be 32 bytes, TODO throw an error instead
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Private key must be 32 bytes long", 0 TSRMLS_CC);
+		return;
 	}
 
 	try {
@@ -54,7 +62,7 @@ PHP_FUNCTION(btclib_get_public_key)
 
 		RETURN_STRINGL(pubkey, 65, 0);
 	} catch(const CryptoPP::Exception& e) {
-		RETURN_FALSE;
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), estrdup(e.what()), 0 TSRMLS_CC);
 	}
 }
 /* }}} */
@@ -67,12 +75,20 @@ PHP_FUNCTION(btclib_sign)
 	char *buffer, *privkey;
 	int blen, tlen;
 
+	zend_error_handling error_handling;
+
+	zend_replace_error_handling(EH_THROW, NULL, &error_handling TSRMLS_CC);
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &buffer, &blen, &privkey, &tlen) == FAILURE) {
-		RETURN_NULL();
+		zend_restore_error_handling(&error_handling TSRMLS_CC);
+		return;
 	}
 
+	zend_restore_error_handling(&error_handling TSRMLS_CC);
+
 	if (tlen != 32) {
-		RETURN_FALSE; // private key must be 32 bytes, TODO throw an error instead
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Private key must be 32 bytes long", 0 TSRMLS_CC);
+		return;
 	}
 
 	try {
@@ -89,6 +105,7 @@ PHP_FUNCTION(btclib_sign)
 		CryptoPP::StringSource(msg, true, new CryptoPP::SignerFilter(prng, sig, new CryptoPP::StringSink(signature)));
 
 		if (signature.size() != 64) { // uh?
+			zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Unexpected length in resulting signature", 0 TSRMLS_CC);
 			RETURN_FALSE;
 		}
 
@@ -114,7 +131,7 @@ PHP_FUNCTION(btclib_sign)
 
 		RETURN_STRINGL(final_signature.c_str(), final_signature.size(), 1);
 	} catch(const CryptoPP::Exception& e) {
-		RETURN_FALSE;
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), estrdup(e.what()), 0 TSRMLS_CC);
 	}
 }
 /* }}} */
