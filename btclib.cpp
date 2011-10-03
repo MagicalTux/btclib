@@ -112,7 +112,13 @@ PHP_FUNCTION(btclib_sign)
 		const char *sig_c = signature.c_str();
 		std::string final_signature; // somehow signature is not DER-encoded, let's fix that
 
-		final_signature.append("\x30\x45\x02", 3);
+		final_signature.append("\x30", 1);
+		// add length (44, 45, 46)
+		int flen = 0x44;
+		if (sig_c[0] < 0) flen++;
+		if (sig_c[32] < 0) flen++;
+		final_signature.append(1, flen);
+		final_signature.append("\x02", 1);
 		if (sig_c[0] < 0) {
 			final_signature.append("\x21\x00", 2);
 			final_signature.append(sig_c, 32);
