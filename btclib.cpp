@@ -133,7 +133,6 @@ PHP_FUNCTION(btclib_sign)
 			final_signature.append("\x02\x20", 2);
 			final_signature.append(sig_c+32, 32);
 		}
-		final_signature.append("\x01", 1);
 
 		RETURN_STRINGL(final_signature.c_str(), final_signature.size(), 1);
 	} catch(const CryptoPP::Exception& e) {
