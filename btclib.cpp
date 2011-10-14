@@ -141,6 +141,55 @@ PHP_FUNCTION(btclib_sign)
 }
 /* }}} */
 
+/* {{{ proto string btclib_rawsign(string buffer, string privkey)
+ * Computes the raw signature for buffer and returns it
+ */
+PHP_FUNCTION(btclib_rawsign)
+{
+	char *buffer, *privkey;
+	int blen, tlen;
+
+	zend_error_handling error_handling;
+
+	zend_replace_error_handling(EH_THROW, NULL, &error_handling TSRMLS_CC);
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &buffer, &blen, &privkey, &tlen) == FAILURE) {
+		zend_restore_error_handling(&error_handling TSRMLS_CC);
+		return;
+	}
+
+	zend_restore_error_handling(&error_handling TSRMLS_CC);
+
+	if (tlen != 32) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Private key must be 32 bytes long", 0 TSRMLS_CC);
+		return;
+	}
+
+	try {
+		CryptoPP::Integer pk((const byte*)privkey, 32, CryptoPP::Integer::UNSIGNED); // private key is 32 bytes (256 bits)
+		CryptoPP::ECDSA<CryptoPP::ECP, CryptoPP::SHA256>::PrivateKey privateKey;
+		privateKey.AccessGroupParameters().Initialize(CryptoPP::ASN1::secp256k1());
+		privateKey.SetPrivateExponent(pk);
+		CryptoPP::ECDSA<CryptoPP::ECP, CryptoPP::SHA256>::Signer sig(privateKey);
+
+		std::string msg(buffer, blen);
+		std::string signature;
+		CryptoPP::AutoSeededRandomPool prng;
+
+		CryptoPP::StringSource(msg, true, new CryptoPP::SignerFilter(prng, sig, new CryptoPP::StringSink(signature)));
+
+		if (signature.size() != 64) { // uh?
+			zend_throw_exception(zend_exception_get_default(TSRMLS_C), "Unexpected length in resulting signature", 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+
+		RETURN_STRINGL(signature.c_str(), signature.size(), 1);
+	} catch(const CryptoPP::Exception& e) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C), estrdup(e.what()), 0 TSRMLS_CC);
+	}
+}
+/* }}} */
+
 /* {{{ btclib_functions[]
  *
  * Every user visible function must have an entry in btclib_functions[].
@@ -149,6 +198,7 @@ PHP_FUNCTION(btclib_sign)
 static zend_function_entry btclib_functions[] = {
 	PHP_FE(btclib_get_public_key, NULL)
 	PHP_FE(btclib_sign, NULL)
+	PHP_FE(btclib_rawsign, NULL)
 	{NULL, NULL, NULL} /* Must be the last line in btclib_functions[] */
 };
 /* }}} */
