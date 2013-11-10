@@ -109,24 +109,24 @@ PHP_FUNCTION(btclib_sign)
 			RETURN_FALSE;
 		}
 
-		const char *sig_c = signature.c_str();
-		std::string final_signature; // somehow signature is not DER-encoded, let's fix that
+		const unsigned char *sig_c = signature.c_str();
+		std::string final_signature; // somehow signature is not [BCD]ER-encoded, let's fix that
 
 		final_signature.append("\x30", 1);
 		// add length (44, 45, 46)
 		int flen = 0x44;
-		if (sig_c[0] < 0) flen++;
-		if (sig_c[32] < 0) flen++;
+		if (sig_c[0] & 0x80) flen++;
+		if (sig_c[32] & 0x80) flen++;
 		final_signature.append(1, flen);
 		final_signature.append("\x02", 1);
-		if (sig_c[0] < 0) {
+		if (sig_c[0] & 0x80) {
 			final_signature.append("\x21\x00", 2);
 			final_signature.append(sig_c, 32);
 		} else {
 			final_signature.append("\x20", 1);
 			final_signature.append(sig_c, 32);
 		}
-		if (sig_c[32] < 0) {
+		if (sig_c[32] & 0x80) {
 			final_signature.append("\x02\x21\x00", 3);
 			final_signature.append(sig_c+32, 32);
 		} else {
