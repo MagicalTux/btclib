@@ -123,7 +123,6 @@ PHP_FUNCTION(btclib_rawsign)
 
 static zend_function_entry btclib_functions[] = {
 	PHP_FE(btclib_get_public_key, NULL)
-	PHP_FE(btclib_sign, NULL)
 	PHP_FE(btclib_rawsign, NULL)
 	{NULL, NULL, NULL} /* Must be the last line in btclib_functions[] */
 };
